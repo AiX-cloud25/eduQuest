@@ -600,8 +600,8 @@ async def root():
 # Include the router in the main app
 app.include_router(api_router)
 
-# Mount static files for media
-app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+# Mount static files for media under /api prefix for proper routing through ingress
+app.mount("/api/media", StaticFiles(directory=str(MEDIA_DIR), html=False), name="media")
 
 app.add_middleware(
     CORSMiddleware,

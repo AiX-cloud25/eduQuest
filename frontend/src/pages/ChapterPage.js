@@ -16,6 +16,68 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Explainer Image Component with loading state
+const ExplainerImage = ({ filePath, backendUrl, title }) => {
+  const [imgStatus, setImgStatus] = useState("loading"); // loading, loaded, error
+
+  useEffect(() => {
+    setImgStatus("loading");
+  }, [filePath]);
+
+  if (!filePath) {
+    return (
+      <div className="bg-slate-100 rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center">
+        <div className="text-center p-8 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-full bg-genius-100 flex items-center justify-center mb-4">
+            <Play size={32} className="text-genius-600" />
+          </div>
+          <p className="font-heading font-semibold text-lg text-slate-700 mb-2">
+            Visual Explainer Coming Soon
+          </p>
+          <p className="text-slate-500 text-sm max-w-xs">
+            Our AI is generating an educational animation for this topic. Check back soon!
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const imageUrl = `${backendUrl}/api/media/${filePath}`;
+
+  return (
+    <div className="bg-slate-100 rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center">
+      {imgStatus === "loading" && (
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-pacific-500" />
+          <span className="text-sm text-slate-500">Loading explainer...</span>
+        </div>
+      )}
+      
+      <img 
+        src={imageUrl}
+        alt={title || "Visual explainer"}
+        className={`max-w-full max-h-[400px] object-contain ${imgStatus === "loaded" ? "" : "hidden"}`}
+        onLoad={() => setImgStatus("loaded")}
+        onError={() => setImgStatus("error")}
+      />
+      
+      {imgStatus === "error" && (
+        <div className="text-center p-8 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-full bg-genius-100 flex items-center justify-center mb-4">
+            <Play size={32} className="text-genius-600" />
+          </div>
+          <p className="font-heading font-semibold text-lg text-slate-700 mb-2">
+            Visual Explainer Coming Soon
+          </p>
+          <p className="text-slate-500 text-sm max-w-xs">
+            Our AI is generating an educational animation for this topic. Check back soon!
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ChapterPage = () => {
   const { classId, subjectId, topicId, chapterId } = useParams();
   const navigate = useNavigate();
@@ -310,32 +372,11 @@ const ChapterPage = () => {
               </h3>
 
               {/* Explainer Image/GIF */}
-              <div className="bg-slate-100 rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center">
-                {explainerMedia?.filePath ? (
-                  <img 
-                    src={`${BACKEND_URL}/media/${explainerMedia.filePath}`}
-                    alt={activeExplainer?.title}
-                    className="max-w-full max-h-[400px] object-contain"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                
-                {/* Placeholder for missing media */}
-                <div className={`text-center p-8 ${explainerMedia?.filePath ? 'hidden' : 'flex'} flex-col items-center`}>
-                  <div className="w-20 h-20 rounded-full bg-genius-100 flex items-center justify-center mb-4">
-                    <Play size={32} className="text-genius-600" />
-                  </div>
-                  <p className="font-heading font-semibold text-lg text-slate-700 mb-2">
-                    Visual Explainer Coming Soon
-                  </p>
-                  <p className="text-slate-500 text-sm max-w-xs">
-                    Our AI is generating an educational animation for this topic. Check back soon!
-                  </p>
-                </div>
-              </div>
+              <ExplainerImage 
+                filePath={explainerMedia?.filePath}
+                backendUrl={BACKEND_URL}
+                title={activeExplainer?.title}
+              />
 
               {/* Topic Description */}
               {explainerMedia?.concept && (
