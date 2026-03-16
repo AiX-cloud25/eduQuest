@@ -1,0 +1,169 @@
+{
+  "brand_identity": {
+    "name": "EduQuest",
+    "persona": "The Smart Playground",
+    "core_values": ["Curiosity", "Clarity", "Encouragement", "Structure"],
+    "emotional_tone": "Friendly, approachable, safe, yet organized and academic."
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Nunito, sans-serif",
+      "usage": "All section headers, page titles, and modal titles.",
+      "weights": {
+        "regular": "500",
+        "bold": "700",
+        "black": "900"
+      },
+      "letter_spacing": "tracking-tight",
+      "line_height": "leading-tight"
+    },
+    "body": {
+      "font_family": "Manrope, sans-serif",
+      "usage": "Paragraphs, lists, inputs, data tables.",
+      "weights": {
+        "regular": "400",
+        "medium": "500",
+        "bold": "600"
+      },
+      "size": "text-base",
+      "line_height": "leading-relaxed"
+    },
+    "monospace": {
+      "font_family": "JetBrains Mono, monospace",
+      "usage": "Code snippets (if any), IDs, technical data."
+    }
+  },
+  "colors": {
+    "primary": {
+      "name": "Pacific Blue",
+      "hex": "#0096C7",
+      "usage": "Main buttons, active states, key brand elements. A deep, trustworthy blue that isn't corporate navy."
+    },
+    "secondary": {
+      "name": "Genius Yellow",
+      "hex": "#FACC15",
+      "usage": "Highlights, 'New' badges, accents, interactive triggers. Adds warmth and energy."
+    },
+    "success": {
+      "name": "Growth Teal",
+      "hex": "#0D9488",
+      "usage": "Success states, completed chapters, positive progress."
+    },
+    "background": {
+      "page": "#F8FAFC",
+      "card": "#FFFFFF",
+      "admin_page": "#F1F5F9"
+    },
+    "text": {
+      "primary": "#0F172A",
+      "secondary": "#475569",
+      "muted": "#94A3B8"
+    },
+    "overlay": {
+      "backdrop": "rgba(0, 0, 0, 0.6)"
+    }
+  },
+  "spacing": {
+    "scale": "Generous. Use p-6 or p-8 for cards instead of p-4.",
+    "border_radius": {
+      "default": "rounded-xl",
+      "large": "rounded-2xl",
+      "button": "rounded-full",
+      "input": "rounded-lg"
+    }
+  },
+  "shadows": {
+    "card": "shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+    "hover": "shadow-[0_8px_30px_rgb(0,0,0,0.08)]",
+    "modal": "shadow-2xl"
+  },
+  "layout_strategies": {
+    "student_dashboard": {
+      "type": "Bento Grid (Mode A)",
+      "grid_cols": "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+      "gap": "gap-6",
+      "card_style": "bg-white rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300 border-b-4 border-transparent hover:border-primary"
+    },
+    "chapter_reader": {
+      "type": "Focused Reader",
+      "container": "max-w-3xl mx-auto bg-white min-h-screen shadow-sm",
+      "padding": "px-8 py-12 md:px-16",
+      "typography_overrides": "text-[18px] leading-[1.8] text-slate-800"
+    },
+    "admin_panel": {
+      "type": "High Density Grid (Mode B)",
+      "container": "w-full p-6",
+      "card_style": "bg-white rounded-lg border border-slate-200 shadow-sm"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-white hover:bg-primary/90 rounded-full px-8 py-3 font-bold transition-all hover:shadow-lg hover:-translate-y-0.5",
+      "secondary": "bg-white text-primary border-2 border-primary hover:bg-primary/5 rounded-full px-8 py-3 font-bold transition-all",
+      "ghost": "text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg px-4 py-2"
+    },
+    "inputs": {
+      "style": "h-12 rounded-lg border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all bg-slate-50 focus:bg-white"
+    },
+    "cards": {
+      "class_card": "flex flex-col items-center justify-center text-center space-y-4 aspect-[4/3] group cursor-pointer relative overflow-hidden",
+      "subject_card": "flex flex-row items-center p-6 space-x-4 hover:bg-slate-50 border border-slate-100"
+    },
+    "modals": {
+      "overlay": "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4",
+      "content": "bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-0 relative shadow-2xl animate-in zoom-in-95 fade-in duration-200",
+      "close_button": "absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-slate-100 rounded-full text-slate-500 hover:text-red-500 transition-colors"
+    }
+  },
+  "visual_enhancers": {
+    "patterns": "Subtle dot pattern or graph paper grid in background of dashboard (opacity 0.4).",
+    "micro_interactions": "Buttons bounce slightly on click. Cards lift on hover. Page transitions use subtle fade-up.",
+    "illustrations": "Use 3D-style icons or flat vector illustrations. Avoid generic corporate Memphis style."
+  },
+  "media_assets": {
+    "images": {
+      "hero_students": {
+        "url": "https://images.unsplash.com/photo-1758270705657-f28eec1a5694?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwyfHxoYXBweSUyMGRpdmVyc2UlMjBzY2hvb2wlMjBzdHVkZW50cyUyMGxlYXJuaW5nJTIwY2xhc3Nyb29tfGVufDB8fHx8MTc3MzY1OTA5NXww&ixlib=rb-4.1.0&q=85",
+        "description": "Happy diverse students taking a selfie, used for login or landing."
+      },
+      "science_lab": {
+        "url": "https://images.unsplash.com/photo-1758685734153-132c8620c1bd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwzfHxzY2llbmNlJTIwbGFib3JhdG9yeSUyMHNjaG9vbCUyMGV4cGVyaW1lbnR8ZW58MHx8fHwxNzczNjU5MDk1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Children in lab coats conducting experiment, used for Science subject card."
+      },
+      "math_abstract": {
+        "url": "https://images.unsplash.com/photo-1647942060371-61d4102c0547?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA4Mzl8MHwxfHNlYXJjaHwzfHxtYXRoZW1hdGljcyUyMGdlb21ldHJ5JTIwYWxnZWJyYSUyMGNvbG9yZnVsJTIwc3ltYm9sc3xlbnwwfHx8fDE3NzM2NTkwOTZ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract multicolored cube, used for Mathematics subject card."
+      },
+      "study_group": {
+        "url": "https://images.unsplash.com/photo-1557734864-c78b6dfef1b1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwzfHxoYXBweSUyMGRpdmVyc2UlMjBzY2hvb2wlMjBzdHVkZW50cyUyMGxlYXJuaW5nJTIwY2xhc3Nyb29tfGVufDB8fHx8MTc3MzY1OTA5NXww&ixlib=rb-4.1.0&q=85",
+        "description": "Group around table, used for Dashboard or About section."
+      }
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure all text meets WCAG AA (4.5:1).",
+    "focus": "All interactive elements must have a visible focus ring (ring-2 ring-primary/50).",
+    "motion": "Respect prefers-reduced-motion."
+  },
+  "universal_guidelines": {
+    "anti_ai_rules": [
+      "No gradients on text.",
+      "No pure black (#000000) backgrounds.",
+      "Avoid 'Inter' font for headings.",
+      "Do not use generic AI emojis (🤖, 🚀) as primary icons."
+    ],
+    "interaction": [
+      "All buttons must have a hover and active state.",
+      "Inputs must have clear error states (border-red-500).",
+      "Modals must close on Escape key or backdrop click."
+    ],
+    "data_testid": "Every interactive element (button, link, input) MUST have a data-testid attribute in kebab-case (e.g., 'login-submit-btn')."
+  },
+  "instructions_to_main_agent": {
+    "setup": "Install 'nunito' and 'manrope' from Google Fonts via @import in index.css.",
+    "icons": "Use 'lucide-react' for all UI icons. Use filled variations for active states if available.",
+    "toasts": "Use 'sonner' for all notifications.",
+    "charts": "Use 'recharts' with the custom color palette defined above.",
+    "layout": "For the Dashboard, use the 'Bento Grid' strategy. For the Admin Panel, use the 'High Density Grid' strategy."
+  }
+}
