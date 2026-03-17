@@ -17,7 +17,12 @@ A web-based educational platform for school students (classes 1–10) that organ
 - Admin panel with 4 media management sections
 - AI-generated GIF explainers using Gemini Nano Banana
 
-## What's Been Implemented (March 16, 2026)
+## What's Been Implemented (March 17, 2026)
+
+### Recent Fixes Applied
+1. **Fix 1 - Media Upload to Chapter/Topic Rendering**: Videos, GIFs, images linked via admin now correctly appear in chapter reader and topic modals
+2. **Fix 2 - PDF Images Rendering**: 14 figures extracted from Chapter 14 PDF and rendered inline with captions (Fig 14.1 through Fig 14.7)
+3. **Fix 3 - Q&A Section Added**: Review Questions section with 5 accordion panels (MCQ, Very Short, Short, Long, Structured) with submit/cancel functionality
 
 ### Authentication
 - JWT-based auth with email/password
