@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone
 import jwt
@@ -44,7 +44,7 @@ security = HTTPBearer()
 
 class UserBase(BaseModel):
     email: EmailStr
-    role: str = "student"  # student or admin
+    role: str = "student"
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -73,10 +73,10 @@ class MediaBase(BaseModel):
     title: str
     filePath: Optional[str] = None
     url: Optional[str] = None
-    sourceType: str = "local"  # local or url
-    linkedTo: str  # path like class9/science/biology/chapter14
-    linkLevel: str = "chapter"  # chapter or topic
-    type: str  # video, gif, image, pdf
+    sourceType: str = "local"
+    linkedTo: str
+    linkLevel: str = "chapter"
+    type: str
     uploadedAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
 class MediaCreate(BaseModel):
@@ -88,15 +88,15 @@ class MediaCreate(BaseModel):
     linkLevel: str = "chapter"
     type: str
 
-class ChapterContent(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    classId: str
-    subject: str
-    topic: str
-    chapterNumber: int
-    title: str
-    content: dict  # Full chapter content as structured data
+class AnswerSubmission(BaseModel):
+    questionId: str
+    type: str
+    selectedOption: Optional[str] = None
+    answerText: Optional[str] = None
+
+class QASubmission(BaseModel):
+    chapterId: str
+    answers: List[AnswerSubmission]
 
 # ==================== AUTH HELPERS ====================
 
@@ -111,7 +111,7 @@ def create_token(user_id: str, email: str, role: str) -> str:
         "user_id": user_id,
         "email": email,
         "role": role,
-        "exp": datetime.now(timezone.utc).timestamp() + 86400 * 7  # 7 days
+        "exp": datetime.now(timezone.utc).timestamp() + 86400 * 7
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -243,16 +243,13 @@ async def upload_media(
     linkLevel: str = Form("chapter"),
     user: dict = Depends(require_admin)
 ):
-    # Determine directory based on type
     type_dirs = {"video": "videos", "gif": "gifs", "image": "images", "pdf": "pdfs"}
     subdir = type_dirs.get(type, "files")
     
-    # Create path based on linkedTo
     path_parts = linkedTo.split("/")
     file_dir = MEDIA_DIR / subdir / "/".join(path_parts)
     file_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save file
     file_path = file_dir / file.filename
     with open(file_path, "wb") as f:
         content = await file.read()
@@ -260,7 +257,6 @@ async def upload_media(
     
     relative_path = f"{subdir}/{linkedTo}/{file.filename}"
     
-    # Create media record
     media_doc = {
         "id": str(uuid.uuid4()),
         "title": title,
@@ -275,12 +271,43 @@ async def upload_media(
     await db.media.insert_one(media_doc)
     return MediaBase(**media_doc)
 
+# FIX 1: Get all media for a chapter path (used by chapter reader)
+@api_router.get("/media/by-chapter/{path:path}")
+async def get_media_by_chapter(path: str, user: dict = Depends(get_current_user)):
+    """Get all media linked to a chapter path"""
+    media = await db.media.find(
+        {"linkedTo": path, "linkLevel": "chapter"},
+        {"_id": 0}
+    ).to_list(100)
+    return media
+
+# FIX 1: Get media for a topic path (used by explainer modal)
+@api_router.get("/media/by-topic/{path:path}")
+async def get_media_by_topic(path: str, user: dict = Depends(get_current_user)):
+    """Get all media linked to a topic path (for explainer modals)"""
+    media = await db.media.find(
+        {"linkedTo": path, "linkLevel": "topic"},
+        {"_id": 0}
+    ).to_list(100)
+    return media
+
 @api_router.get("/media/by-path/{path:path}")
 async def get_media_by_path(path: str, user: dict = Depends(get_current_user)):
     media = await db.media.find({"linkedTo": path}, {"_id": 0}).to_list(100)
     return media
 
-# ==================== CHAPTER CONTENT ====================
+# ==================== CHAPTER 14 CONTENT WITH IMAGES ====================
+
+CHAPTER_14_FIGURES = [
+    {"id": "fig-14-1", "filename": "fig-03.jpg", "caption": "Fig. 14.1 Summary of respiration", "afterSection": "14.1"},
+    {"id": "fig-14-2", "filename": "fig-04.jpg", "caption": "Fig. 14.2 Aerobic and Anaerobic Respiration comparison", "afterSection": "14.4"},
+    {"id": "fig-14-3a", "filename": "fig-05.jpg", "caption": "Fig. 14.3 A — Human respiratory system (front view)", "afterSection": "14.6"},
+    {"id": "fig-14-3b", "filename": "fig-06.jpg", "caption": "Fig. 14.3 B — Human respiratory system (section view)", "afterSection": "14.6"},
+    {"id": "fig-14-4", "filename": "fig-07.jpg", "caption": "Fig. 14.4 Gas exchange in an alveolus", "afterSection": "14.6"},
+    {"id": "fig-14-5", "filename": "fig-08.jpg", "caption": "Fig. 14.5 Mechanism of breathing — Inspiration and Expiration", "afterSection": "14.7"},
+    {"id": "fig-14-6", "filename": "fig-09.jpg", "caption": "Fig. 14.6 Lung volumes and capacities", "afterSection": "14.8"},
+    {"id": "fig-14-7", "filename": "fig-10.jpg", "caption": "Fig. 14.7 Bell jar experiment demonstrating diaphragm action", "afterSection": "14.11"},
+]
 
 CHAPTER_14_CONTENT = {
     "id": "ch14-respiratory-system",
@@ -289,6 +316,7 @@ CHAPTER_14_CONTENT = {
     "topic": "biology",
     "chapterNumber": 14,
     "title": "The Respiratory System",
+    "figures": CHAPTER_14_FIGURES,
     "sections": [
         {
             "id": "14.1",
@@ -305,7 +333,8 @@ CHAPTER_14_CONTENT = {
                     "The energy liberated in the breakdown of the glucose molecule is not all in the form of heat, but a large part of it is converted into chemical energy in the form of ATP (adenosine triphosphate).",
                     "The essential steps of cellular respiration are same in plants and animals."
                 ]},
-                {"type": "callout", "title": "WHY WE NEED ENERGY", "text": "Body cells need energy for a vast variety of activities: Synthesis of proteins from amino acids, Production of enzymes, Contraction of muscles for movement, Conduction of electrical impulse in a nerve cell, Production of new cells by cell division, In keeping the body warm (in warm-blooded animals)."}
+                {"type": "callout", "title": "WHY WE NEED ENERGY", "text": "Body cells need energy for a vast variety of activities: Synthesis of proteins from amino acids, Production of enzymes, Contraction of muscles for movement, Conduction of electrical impulse in a nerve cell, Production of new cells by cell division, In keeping the body warm (in warm-blooded animals)."},
+                {"type": "figure", "figureId": "fig-14-1"}
             ]
         },
         {
@@ -347,7 +376,8 @@ CHAPTER_14_CONTENT = {
                     ["Products of glucose are ethanol and CO₂", "Product of glucose is lactic acid (and no CO₂)"],
                     ["Released heat energy is more", "Released heat energy is less"],
                     ["CO₂ released causes foaming", "No CO₂ released, so no foaming"]
-                ]}
+                ]},
+                {"type": "figure", "figureId": "fig-14-2"}
             ]
         },
         {
@@ -383,7 +413,10 @@ CHAPTER_14_CONTENT = {
                 {"type": "paragraph", "text": "Close to the lungs, the trachea divides into two tubes, called the bronchi, which enter the respective lungs. Bronchioles are the subsequent still finer tubes which ultimately end in a cluster of tiny air chambers called the air sacs or alveoli."},
                 {"type": "heading", "text": "The Lungs"},
                 {"type": "paragraph", "text": "The lungs are a pair of spongy and elastic organs. The two lungs are roughly cone-shaped, tapering at the top and broad at the bottom. The left lung has two lobes and the right lung has three."},
-                {"type": "callout", "title": "Amazing Fact!", "text": "The number of alveoli in the two lungs in an adult human is about 700 million. Total surface area of the alveoli is about 70 square metres — nearly equal to the area of a tennis court!"}
+                {"type": "callout", "title": "Amazing Fact!", "text": "The number of alveoli in the two lungs in an adult human is about 700 million. Total surface area of the alveoli is about 70 square metres — nearly equal to the area of a tennis court!"},
+                {"type": "figure", "figureId": "fig-14-3a"},
+                {"type": "figure", "figureId": "fig-14-3b"},
+                {"type": "figure", "figureId": "fig-14-4"}
             ]
         },
         {
@@ -404,7 +437,8 @@ CHAPTER_14_CONTENT = {
                     ["Thoracic cavity", "Increases", "Decreases"],
                     ["Air pressure", "Decreases inside", "Increases inside"]
                 ]},
-                {"type": "callout", "title": "Control of Breathing", "text": "The breathing movements are largely controlled by a respiratory centre located in the medulla oblongata of the brain. This centre is stimulated by the carbon dioxide content of the blood."}
+                {"type": "callout", "title": "Control of Breathing", "text": "The breathing movements are largely controlled by a respiratory centre located in the medulla oblongata of the brain. This centre is stimulated by the carbon dioxide content of the blood."},
+                {"type": "figure", "figureId": "fig-14-5"}
             ]
         },
         {
@@ -423,7 +457,8 @@ CHAPTER_14_CONTENT = {
                     "Vital capacity: Volume of air that can be taken in and expelled out by maximum inspiration and expiration = 4500 mL",
                     "Residual volume: Air always left in the lungs even after forcibly breathing out = 1500 mL",
                     "Total lung capacity: Maximum air which can at any time be held in the two lungs = 6000 mL"
-                ]}
+                ]},
+                {"type": "figure", "figureId": "fig-14-6"}
             ]
         },
         {
@@ -474,7 +509,8 @@ CHAPTER_14_CONTENT = {
                 {"type": "heading", "text": "Experiment 3: Diaphragm Action"},
                 {"type": "paragraph", "text": "Using a bell jar with a rubber sheet at the bottom and balloons inside, pulling the sheet downward (representing diaphragm contraction) causes the balloons to inflate, demonstrating inspiration."},
                 {"type": "heading", "text": "Experiment 4: Measuring Expired Air Volume"},
-                {"type": "paragraph", "text": "By blowing into an inverted water-filled container, the displaced water volume equals the volume of expired air."}
+                {"type": "paragraph", "text": "By blowing into an inverted water-filled container, the displaced water volume equals the volume of expired air."},
+                {"type": "figure", "figureId": "fig-14-7"}
             ]
         }
     ],
@@ -499,13 +535,180 @@ CHAPTER_14_CONTENT = {
     ]
 }
 
+# ==================== CHAPTER 14 REVIEW QUESTIONS ====================
+
+CHAPTER_14_QUESTIONS = {
+    "chapterId": "class9/science/biology/chapter14",
+    "sections": {
+        "mcq": {
+            "title": "A. Multiple Choice Questions",
+            "questions": [
+                {
+                    "id": "mcq-1",
+                    "text": "During inspiration, the diaphragm",
+                    "options": ["relaxes", "contracts", "expands", "gets folded"],
+                    "correctAnswer": "contracts"
+                },
+                {
+                    "id": "mcq-2",
+                    "text": "The ultimate end parts of the respiratory system in humans are known as",
+                    "options": ["alveoli", "bronchioles", "tracheoles", "bronchi"],
+                    "correctAnswer": "alveoli"
+                },
+                {
+                    "id": "mcq-3",
+                    "text": "During respiration there is",
+                    "options": ["gain in dry weight", "loss in dry weight", "no change in dry weight", "increase in the overall weight"],
+                    "correctAnswer": "loss in dry weight"
+                }
+            ]
+        },
+        "veryShort": {
+            "title": "B. Very Short Answer Questions",
+            "questions": [
+                {
+                    "id": "vs-1",
+                    "text": "Choose the odd one out: Trachea, Bronchus, Alveolus, Diaphragm"
+                },
+                {
+                    "id": "vs-2",
+                    "text": "Name the body structure that prevents food from entering the trachea during swallowing."
+                },
+                {
+                    "id": "vs-3",
+                    "text": "Name the body structure that transports oxygen to the body cells."
+                },
+                {
+                    "id": "vs-4",
+                    "text": "Name the body structure that helps to increase the volume of the chest cavity lengthwise."
+                },
+                {
+                    "id": "vs-5",
+                    "text": "Which chemical compound inside a cell can be termed 'Currency of Energy'?"
+                }
+            ]
+        },
+        "shortAnswer": {
+            "title": "C. Short Answer Questions",
+            "questions": [
+                {
+                    "id": "sa-1",
+                    "text": "Fill in the blank: Alveoli and ______________________"
+                },
+                {
+                    "id": "sa-2",
+                    "text": "Fill in the blank: Mitochondria and ______________________"
+                },
+                {
+                    "id": "sa-3",
+                    "text": "State one function of ciliated epithelium lining the respiratory tract."
+                },
+                {
+                    "id": "sa-4",
+                    "text": "State one function of the diaphragm."
+                },
+                {
+                    "id": "sa-5",
+                    "text": "Under what conditions would the breathing rate increase?"
+                },
+                {
+                    "id": "sa-6",
+                    "text": "How is the respiratory passage kept free of dust particles?"
+                }
+            ]
+        },
+        "longAnswer": {
+            "title": "D. Long Answer Questions / Essay Type",
+            "questions": [
+                {
+                    "id": "la-1",
+                    "text": "Differentiate between aerobic and anaerobic respiration based on end products of the process."
+                },
+                {
+                    "id": "la-2",
+                    "text": "Differentiate between respiration and photosynthesis based on gas released."
+                },
+                {
+                    "id": "la-3",
+                    "text": "Explain why breathing through the nose is said to be healthier than through the mouth."
+                },
+                {
+                    "id": "la-4",
+                    "text": "Why does gaseous exchange continue in the lungs even during expiration?"
+                },
+                {
+                    "id": "la-5",
+                    "text": "Why does a person feel breathlessness at higher altitudes?"
+                },
+                {
+                    "id": "la-6",
+                    "text": "Starting from the nostrils, trace the path in sequence which the inspired air takes until it reaches the air sacs."
+                }
+            ]
+        },
+        "structured": {
+            "title": "E. Structured / Application Questions",
+            "questions": [
+                {
+                    "id": "st-1",
+                    "text": "Given below is an overall chemical reaction: C₆H₁₂O₆ → lactic acid + 2ATP + heat energy. (a) Name the process. (b) Is this reaction applicable to animals or to plants or to both? (c) Name one tissue in which this reaction may occur."
+                },
+                {
+                    "id": "st-2",
+                    "text": "Explain briefly: (a) Tidal volume (b) Inspiratory reserve volume (c) Expiratory reserve volume (d) Vital capacity (e) Residual volume",
+                    "figureRef": "fig-14-6"
+                },
+                {
+                    "id": "st-3",
+                    "text": "With regard to the respiratory system, answer: (a) Name the two muscles that help in breathing. (b) Briefly describe how these muscles help in inspiration. (c) Give the overall chemical equation for respiration. (d) What is meant by: 1. Residual air 2. Dead air space"
+                }
+            ]
+        }
+    }
+}
+
 @api_router.get("/chapters/{class_id}/{subject}/{topic}/{chapter_num}")
-async def get_chapter(class_id: str, subject: str, topic: str, chapter_num: int):
-    # For now, only Chapter 14 Biology is fully implemented
-    if class_id == "9" and subject == "science" and topic == "biology" and chapter_num == 14:
-        return CHAPTER_14_CONTENT
+async def get_chapter(class_id: str, subject: str, topic: str, chapter_num: int, user: dict = Depends(get_current_user)):
+    chapter_path = f"class{class_id}/{subject}/{topic}/chapter{chapter_num}"
     
-    # Return placeholder for other chapters
+    # Check if there's a PDF linked to this chapter
+    pdf_media = await db.media.find_one(
+        {"linkedTo": chapter_path, "type": "pdf"},
+        {"_id": 0}
+    )
+    
+    # For Chapter 14 Biology, return the hardcoded content with figures
+    if class_id == "9" and subject == "science" and topic == "biology" and chapter_num == 14:
+        content = CHAPTER_14_CONTENT.copy()
+        content["linkedPdf"] = pdf_media
+        content["chapterPath"] = chapter_path
+        return content
+    
+    # For other chapters, check if PDF exists
+    if pdf_media:
+        return {
+            "id": f"ch{chapter_num}-from-pdf",
+            "classId": class_id,
+            "subject": subject,
+            "topic": topic,
+            "chapterNumber": chapter_num,
+            "title": pdf_media.get("title", f"Chapter {chapter_num}"),
+            "chapterPath": chapter_path,
+            "linkedPdf": pdf_media,
+            "sections": [
+                {
+                    "id": f"{chapter_num}.1",
+                    "slug": "content",
+                    "title": f"{chapter_num}.1 Chapter Content",
+                    "content": [
+                        {"type": "paragraph", "text": "Content parsed from uploaded PDF."}
+                    ]
+                }
+            ],
+            "progressChecks": []
+        }
+    
+    # Return placeholder for chapters without content
     return {
         "id": f"ch{chapter_num}-placeholder",
         "classId": class_id,
@@ -513,27 +716,97 @@ async def get_chapter(class_id: str, subject: str, topic: str, chapter_num: int)
         "topic": topic,
         "chapterNumber": chapter_num,
         "title": f"Chapter {chapter_num}",
-        "sections": [
-            {
-                "id": f"{chapter_num}.1",
-                "slug": "introduction",
-                "title": f"{chapter_num}.1 Introduction",
-                "content": [
-                    {"type": "paragraph", "text": "This chapter content is coming soon. Check back later for the full content."}
-                ]
-            }
-        ],
+        "chapterPath": chapter_path,
+        "linkedPdf": None,
+        "noContent": True,
+        "sections": [],
         "progressChecks": []
     }
 
+# FIX 1: Updated explainer endpoint to also check for videos
 @api_router.get("/explainers/{path:path}")
 async def get_explainer(path: str, user: dict = Depends(get_current_user)):
-    """Get explainer media (GIF/image) for a specific topic"""
-    media = await db.media.find_one(
-        {"linkedTo": path, "type": {"$in": ["gif", "image"]}},
+    """Get all explainer media (GIF/image/video) for a specific topic"""
+    media_list = await db.media.find(
+        {"linkedTo": path, "linkLevel": "topic"},
         {"_id": 0}
+    ).to_list(100)
+    
+    result = {
+        "gif": None,
+        "image": None,
+        "video": None
+    }
+    
+    for m in media_list:
+        if m.get("type") == "gif":
+            result["gif"] = m
+        elif m.get("type") == "image":
+            result["image"] = m
+        elif m.get("type") == "video":
+            result["video"] = m
+    
+    # For backwards compatibility, also return first gif/image as top-level
+    if result["gif"]:
+        result.update(result["gif"])
+    elif result["image"]:
+        result.update(result["image"])
+    
+    return result
+
+# FIX 3: Q&A Endpoints
+@api_router.get("/chapters/{class_id}/{subject}/{topic}/{chapter_num}/questions")
+async def get_chapter_questions(class_id: str, subject: str, topic: str, chapter_num: int, user: dict = Depends(get_current_user)):
+    """Get review questions for a chapter"""
+    chapter_path = f"class{class_id}/{subject}/{topic}/chapter{chapter_num}"
+    
+    # Check if questions exist in DB
+    questions = await db.chapter_questions.find_one({"chapterId": chapter_path}, {"_id": 0})
+    
+    if questions:
+        return questions
+    
+    # For Chapter 14, return hardcoded questions
+    if class_id == "9" and subject == "science" and topic == "biology" and chapter_num == 14:
+        return CHAPTER_14_QUESTIONS
+    
+    return {"chapterId": chapter_path, "sections": {}, "noQuestions": True}
+
+@api_router.post("/qa/submit")
+async def submit_qa_answers(submission: QASubmission, user: dict = Depends(get_current_user)):
+    """Submit Q&A answers"""
+    submission_doc = {
+        "id": str(uuid.uuid4()),
+        "userId": user["id"],
+        "username": user.get("name", user["email"]),
+        "chapterId": submission.chapterId,
+        "submittedAt": datetime.now(timezone.utc).isoformat(),
+        "answers": [a.dict() for a in submission.answers]
+    }
+    
+    await db.qa_submissions.insert_one(submission_doc)
+    
+    return {"message": "Your answers have been saved", "submissionId": submission_doc["id"]}
+
+@api_router.get("/qa/submissions/{chapter_id:path}")
+async def get_qa_submissions(chapter_id: str, user: dict = Depends(get_current_user)):
+    """Get all Q&A submissions for a user and chapter"""
+    submissions = await db.qa_submissions.find(
+        {"userId": user["id"], "chapterId": chapter_id},
+        {"_id": 0}
+    ).sort("submittedAt", -1).to_list(100)
+    
+    return submissions
+
+@api_router.get("/qa/latest/{chapter_id:path}")
+async def get_latest_submission(chapter_id: str, user: dict = Depends(get_current_user)):
+    """Get the most recent Q&A submission for a user and chapter"""
+    submission = await db.qa_submissions.find_one(
+        {"userId": user["id"], "chapterId": chapter_id},
+        {"_id": 0},
+        sort=[("submittedAt", -1)]
     )
-    return media
+    return submission
 
 # ==================== CURRICULUM DATA ====================
 
@@ -544,7 +817,7 @@ async def get_classes():
         classes.append({
             "id": str(i),
             "name": f"Class {i}",
-            "hasContent": i == 9  # Only class 9 has full content
+            "hasContent": i == 9
         })
     return classes
 
@@ -571,7 +844,6 @@ async def get_topics(class_id: str, subject_id: str):
 
 @api_router.get("/curriculum/chapters/{class_id}/{subject_id}/{topic_id}")
 async def get_chapters(class_id: str, subject_id: str, topic_id: str):
-    # Return sample chapters, with chapter 14 for biology being fully implemented
     chapters = []
     num_chapters = 15 if topic_id == "biology" else 10
     
@@ -583,7 +855,6 @@ async def get_chapters(class_id: str, subject_id: str, topic_id: str):
             "hasFullContent": class_id == "9" and subject_id == "science" and topic_id == "biology" and i == 14
         }
         
-        # Add specific title for Chapter 14 Biology
         if topic_id == "biology" and i == 14:
             chapter["title"] = "The Respiratory System"
         
@@ -595,12 +866,12 @@ async def get_chapters(class_id: str, subject_id: str, topic_id: str):
 
 @api_router.get("/")
 async def root():
-    return {"message": "EduQuest API", "version": "1.0.0"}
+    return {"message": "EduQuest API", "version": "1.1.0"}
 
-# Include the router in the main app
+# Include the router
 app.include_router(api_router)
 
-# Mount static files for media under /api prefix for proper routing through ingress
+# Mount static files
 app.mount("/api/media", StaticFiles(directory=str(MEDIA_DIR), html=False), name="media")
 
 app.add_middleware(
@@ -611,18 +882,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# ==================== STARTUP: SEED DEFAULT ADMIN ====================
+# ==================== STARTUP ====================
 
 @app.on_event("startup")
 async def startup_event():
-    # Create default admin user if not exists
+    # Create default admin user
     admin = await db.users.find_one({"email": "admin@eduquest.com"})
     if not admin:
         admin_doc = {
@@ -634,7 +904,7 @@ async def startup_event():
             "createdAt": datetime.now(timezone.utc).isoformat()
         }
         await db.users.insert_one(admin_doc)
-        logger.info("Default admin user created: admin@eduquest.com / admin123")
+        logger.info("Default admin user created")
     
     # Seed explainer media entries for Chapter 14
     explainer_topics = [
@@ -649,6 +919,7 @@ async def startup_event():
     ]
     
     for topic in explainer_topics:
+        # Use consistent path format: class9/science/biology/chapter14/slug
         path = f"class9/science/biology/chapter14/{topic['slug']}"
         existing = await db.media.find_one({"linkedTo": path, "type": "gif"})
         if not existing:

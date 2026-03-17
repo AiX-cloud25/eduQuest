@@ -224,6 +224,58 @@ class EduQuestAPITester:
             headers=headers
         )
 
+    def test_qa_endpoints(self):
+        """Test Q&A functionality"""
+        if not self.admin_token:
+            self.log_test("Q&A Tests", False, "No admin token available")
+            return
+            
+        headers = {"Authorization": f"Bearer {self.admin_token}"}
+        
+        # Test get chapter questions
+        success, response = self.test_api_endpoint(
+            "Get Chapter 14 Questions",
+            "GET",
+            "chapters/9/science/biology/14/questions",
+            200,
+            headers=headers
+        )
+        
+        if success:
+            # Check if questions have the expected structure
+            if 'sections' in response and 'mcq' in response['sections']:
+                self.log_test("Chapter 14 Has MCQ Questions", True, f"MCQ section found")
+            else:
+                self.log_test("Chapter 14 Has MCQ Questions", False, "No MCQ section found")
+        
+        # Test submit answers
+        test_submission = {
+            "chapterId": "class9/science/biology/chapter14",
+            "answers": [
+                {
+                    "questionId": "mcq-1",
+                    "type": "mcq",
+                    "selectedOption": "contracts",
+                    "answerText": None
+                },
+                {
+                    "questionId": "vs-1",
+                    "type": "veryShort",
+                    "selectedOption": None,
+                    "answerText": "Diaphragm"
+                }
+            ]
+        }
+        
+        success, response = self.test_api_endpoint(
+            "Submit Q&A Answers",
+            "POST",
+            "qa/submit",
+            200,
+            data=test_submission,
+            headers=headers
+        )
+
     def test_admin_only_endpoints(self):
         """Test admin-only functionality"""
         if not self.admin_token:
@@ -286,6 +338,9 @@ class EduQuestAPITester:
         
         # Explainer endpoints
         self.test_explainer_endpoint()
+        
+        # Q&A functionality
+        self.test_qa_endpoints()
         
         # Admin functionality
         self.test_admin_only_endpoints()
